@@ -1,4 +1,4 @@
-<h1 align="center">$$\color{gold} \large \text{DNS Tester | تستر آنلاین DNS}$$</h1>
+<h1 align="center">$$\color{gold} \large \text{DNS Tester | Онлайн-тестер DNS}$$</h1>
 
 [![web](https://img.shields.io/badge/Visit-Website-cyan?style=for-the-badge&logo=githubpages)](https://darknessShade.github.io/DNS-Tester/)
 [![Data](https://img.shields.io/badge/Data-DNS-purple?style=for-the-badge&logo=githubpages)](https://github.com/DarknessShade/DNS-Tester/blob/main/Data.md)
@@ -13,7 +13,7 @@
 </p> 
 
 
-<h3 align="center">$$\color{yellow} \large \text{✨ ویژگی‌ها (Features)}$$</h3>
+<h3 align="center">$$\color{yellow} \large \text{✨ Функции (Features)}$$</h3>
 <p align="center" >
    <img  width="35%"  src="https://github.com/mansor427/mansor427/assets/104245967/15a9fad4-d747-464a-9cf9-e6304e03872d">
 </p>
@@ -24,7 +24,7 @@
 - **Отображение информации о пользователе:** Отображает IP-адрес пользователя, местоположение и флаг страны.
 - **Обмен результатами:** Возможность загрузить или поделиться результатами теста в виде изображения.
 
-<h3 align="center">$$\color{yellow} \large \text{🚀 نحوه استفاده (How to Use)}$$</h3>
+<h3 align="center">$$\color{yellow} \large \text{🚀 Как использовать (How to Use)}$$</h3>
 <p align="center" >
    <img  width="40%"  src="https://github.com/mansor427/mansor427/assets/104245967/15a9fad4-d747-464a-9cf9-e6304e03872d">
 </p>
@@ -43,7 +43,7 @@
     <img width="55%"  src="https://github.com/mansor427/IpScanner/assets/104245967/b09437c5-ffbc-49b9-ab64-fd138739dd66">
 </p>
 
--   **JavaScript (ES6+):** برای پیاده‌سازی منطق اصلی برنامه و تست سرورها.
+-   **JavaScript (ES6+):** Для реализации основной логики приложения и тестирования серверов.
   
 <p align="left" >
     <img width="55%"  src="https://github.com/mansor427/IpScanner/assets/104245967/b09437c5-ffbc-49b9-ab64-fd138739dd66">
