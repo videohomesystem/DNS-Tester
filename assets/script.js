@@ -202,7 +202,7 @@ async function fetchUserIP() {
         const response = await fetch('https://ifconfig.me/');
         if (!response.ok) throw new Error();
         const data = await response.json();
-        elements.ipAddress.textContent = data.ip;
+        elements.ipAddress.textContent = data.ip_addr;
         elements.geolocation.textContent = `${data.city}, ${data.country_name}`;
         if (data.country_code) {
             elements.countryFlag.src = `https://flagcdn.com/w20/${data.country_code.toLowerCase()}.png`;
