@@ -1,58 +1,58 @@
 // ==========================================
-// DNS Tester Data File
+// DNS Tester Data File 
 // ==========================================
 
 const serverData = {
 
-    // --- Iranian Servers (for sanction bypassing) ---
-    'Shecan (شکن)': {
-        url: 'https://free.shecan.ir/dns-query',
-        features: ['گذر از تحریم'],
-        privacy: 'متوسط',
-        group: 'ایرانی',
-        ipv4: '178.22.122.100, 185.51.200.2',
-        ipv6: 'N/A',
-    },
-    'Begzar (بگذر)': {
-        url: 'https://dns.begzar.ir/dns-query',
-        features: ['گذر از تحریم'],
-        privacy: 'متوسط',
-        group: 'ایرانی',
-        ipv4: 'N/A',
-        ipv6: 'N/A',
-    },
-    '403.online': {
-        url: 'https://dns.403.online/dns-query',
-        features: ['گذر از تحریم'],
-        privacy: 'متوسط',
-        group: 'ایرانی',
-        ipv4: '10.202.10.10, 10.202.10.11',
-        ipv6: 'N/A',
-    },
-    'Radar Game': {
-        url: 'https://dns.radar.game/dns-query',
-        features: ['گیمینگ', 'گذر از تحریم'],
-        privacy: 'متوسط',
-        group: 'ایرانی',
-        ipv4: '10.202.10.10, 10.202.10.11',
-        ipv6: 'N/A',
-    },
-    'Electro': {
-        url: 'https://dns.electrotm.org/dns-query',
-        features: ['گذر از تحریم'],
-        privacy: 'نامشخص',
-        group: 'ایرانی',
-        ipv4: '78.157.42.100, 78.157.42.101',
-        ipv6: 'N/A',
-    },
-    'xStack': {
-        url: 'https://rustdns.devefun.org/dns-query',
-        features: ['گذر از تحریم', 'نصب پکیج‌های لینوکس'],
-        privacy: 'متوسط',
-        group: 'ایرانی',
-        ipv4: 'N/A',
-        ipv6: 'N/A',
-    },
+//   // --- Iranian Servers (for sanction bypassing) ---
+//   'Shecan (شکن)': {
+//       url: 'https://free.shecan.ir/dns-query',
+//       features: ['گذر از تحریم'],
+//       privacy: 'متوسط',
+//       group: 'ایرانی',
+//       ipv4: '178.22.122.100, 185.51.200.2',
+//       ipv6: 'N/A',
+//   },
+//   'Begzar (بگذر)': {
+//       url: 'https://dns.begzar.ir/dns-query',
+//       features: ['گذر از تحریم'],
+//       privacy: 'متوسط',
+//       group: 'ایرانی',
+//       ipv4: 'N/A',
+//       ipv6: 'N/A',
+//   },
+//   '403.online': {
+//       url: 'https://dns.403.online/dns-query',
+//       features: ['گذر از تحریم'],
+//       privacy: 'متوسط',
+//       group: 'ایرانی',
+//       ipv4: '10.202.10.10, 10.202.10.11',
+//       ipv6: 'N/A',
+//   },
+//   'Radar Game': {
+//       url: 'https://dns.radar.game/dns-query',
+//       features: ['گیمینگ', 'گذر از تحریم'],
+//       privacy: 'متوسط',
+//       group: 'ایرانی',
+//       ipv4: '10.202.10.10, 10.202.10.11',
+//       ipv6: 'N/A',
+//   },
+//   'Electro': {
+//       url: 'https://dns.electrotm.org/dns-query',
+//       features: ['گذر از تحریم'],
+//       privacy: 'نامشخص',
+//       group: 'ایرانی',
+//       ipv4: '78.157.42.100, 78.157.42.101',
+//       ipv6: 'N/A',
+//   },
+//   'xStack': {
+//       url: 'https://rustdns.devefun.org/dns-query',
+//       features: ['گذر از تحریم', 'نصب پکیج‌های لینوکس'],
+//       privacy: 'متوسط',
+//       group: 'ایرانی',
+//       ipv4: 'N/A',
+//       ipv6: 'N/A',
+//   },
 
     // --- Global Providers (Performance, Privacy & Security) ---
     'Cloudflare (1.1.1.1)': {
