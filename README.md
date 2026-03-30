@@ -54,7 +54,6 @@
    <img  width="15%" src="https://github.com/mansor427/IpScanner/assets/104245967/08ccb46c-51a3-4d16-a0a4-27fb7492d35d">
 </p>
 
-WHO MAKE THIS?
 
 [ÐΛɌ₭ᑎΞ𐒡𐒡](https://github.com/darknessshade)
 
@@ -63,4 +62,3 @@ WHO MAKE THIS?
    <img  width="15%" src="https://github.com/mansor427/IpScanner/assets/104245967/08ccb46c-51a3-4d16-a0a4-27fb7492d35d">
 </p>
 
-FORKED
