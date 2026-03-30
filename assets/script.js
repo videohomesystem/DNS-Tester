@@ -2,7 +2,7 @@
 let servers = [];
 let isChecking = false;
 let currentLang = 'en';
-const langOrder = ['fa', 'en', 'zh', 'ru'];
+const langOrder = ['en'];
 
 // --- DOM Elements ---
 const elements = {
@@ -35,7 +35,7 @@ const elements = {
 // --- Helper Functions ---
 function t(key) {
     if (typeof i18n !== 'undefined' && i18n[currentLang] && i18n[currentLang][key]) {
-        return i18n[currentLang][key];
+       return i18n[currentLang][key];
     }
     return key;
 }
@@ -209,8 +209,8 @@ function updateChart(percent) {
 //         //   elements.countryFlag.src = `https://flagcdn.com/w20/${data.country_code.toLowerCase()}.png`;
 //          //  elements.countryFlag.classList.remove('hidden');
 //        }
- //   } catch {
- //       elements.ipAddress.textContent = '---';
+//    } catch {
+//       elements.ipAddress.textContent = '---';
 //        elements.geolocation.textContent = '---';
 //    }
 //}
@@ -365,11 +365,11 @@ elements.themeToggle.addEventListener('click', () => {
     elements.themeMoon.classList.toggle('hidden', !isDark);
 });
 
-elements.langToggle.addEventListener('click', () => {
-    let index = langOrder.indexOf(currentLang);
-    index = (index + 1) % langOrder.length;
-    updateLanguage(langOrder[index]);
-});
+//elements.langToggle.addEventListener('click', () => {
+//    let index = langOrder.indexOf(currentLang);
+//    index = (index + 1) % langOrder.length;
+//    updateLanguage(langOrder[index]);
+//});
 
 elements.addDnsButton.addEventListener('click', () => {
     const content = `
