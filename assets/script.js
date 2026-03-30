@@ -199,14 +199,15 @@ function updateChart(percent) {
 async function fetchUserIP() {
     try {
         // const response = await fetch('https://ipapi.co/json/');
-        const response = await fetch('https://ifconfig.me/');
+        const response = await fetch('https://ifconfig.me/all.json');
         if (!response.ok) throw new Error();
         const data = await response.json();
+        // elements.ipAddress.textContent = data.ip;
         elements.ipAddress.textContent = data.ip_addr;
         elements.geolocation.textContent = `${data.city}, ${data.country_name}`;
-        if (data.country_code) {
-            elements.countryFlag.src = `https://flagcdn.com/w20/${data.country_code.toLowerCase()}.png`;
-            elements.countryFlag.classList.remove('hidden');
+        //if (data.country_code) {
+         //   elements.countryFlag.src = `https://flagcdn.com/w20/${data.country_code.toLowerCase()}.png`;
+          //  elements.countryFlag.classList.remove('hidden');
         }
     } catch {
         elements.ipAddress.textContent = '---';
