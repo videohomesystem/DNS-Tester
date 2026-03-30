@@ -198,7 +198,8 @@ function updateChart(percent) {
 // --- Actions ---
 async function fetchUserIP() {
     try {
-        const response = await fetch('https://ipapi.co/json/');
+        // const response = await fetch('https://ipapi.co/json/');
+        const response = await fetch('https://ifconfig.me/');
         if (!response.ok) throw new Error();
         const data = await response.json();
         elements.ipAddress.textContent = data.ip;
