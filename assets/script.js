@@ -1,7 +1,7 @@
 // --- Global State ---
 let servers = [];
 let isChecking = false;
-let currentLang = 'fa';
+let currentLang = 'en';
 const langOrder = ['fa', 'en', 'zh', 'ru'];
 
 // --- DOM Elements ---
