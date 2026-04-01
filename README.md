@@ -4,7 +4,7 @@
 [![Data](https://img.shields.io/badge/Data-DNS-purple?style=for-the-badge&logo=githubpages)](https://github.com/DarknessShade/DNS-Tester/blob/main/Data.md)
 [![DOH](https://img.shields.io/badge/All-DOH-orange?style=for-the-badge&logo=githubpages)](https://github.com/DarknessShade/DNS-Tester/blob/main/DNS-over-HTTPS.md)
 
-### Быстрый, современный онлайн-инструмент для тестирования и сравнения скорости ответа (Ping) различных DNS-серверов. Этот проект разработан с целью помочь пользователям найти самый быстрый и стабильный DNS-сервер в зависимости от их географического местоположения и состояния сети.
+## Faster and modern online-tool for test and comparison response some DNS servers. This project was make to help any users to find faster and stable DNS server.
 
 <p align="center" >
    <img  width="50%"  src="https://rand-xyz.now.sh/api/hello" />  
@@ -18,6 +18,12 @@
    <img  width="35%"  src="https://github.com/mansor427/mansor427/assets/104245967/15a9fad4-d747-464a-9cf9-e6304e03872d">
 </p>
 
+- **Full list DNS:**Collect dozen of DNS servers
+- **Precise speed test:**
+- **Finding best servers:** Display best DNS server 
+- **
+- **Share out of result:** Polssibility to share of result test
+
 - **Полный список DNS:** Включает десятки популярных иранских и глобальных DNS-серверов (Shakan, Electro, Cloudflare, Google и др.).
 - **Точный тест скорости:** Измеряет время ответа (Ping) каждого сервера одним щелчком мыши.
 - **Определение лучшего сервера:** Отображает самый быстрый DNS-сервер специальной отметкой.
@@ -29,9 +35,9 @@
    <img  width="40%"  src="https://github.com/mansor427/mansor427/assets/104245967/15a9fad4-d747-464a-9cf9-e6304e03872d">
 </p>
 
-1. Перейдите на веб-страницу [DNS Tester](https://videohomesystem.github.io/DNS-Tester/).
+1. Open the test link: [DNS Tester](https://videohomesystem.github.io/DNS-Tester/).
 
-2. Нажмите кнопку **"Проверить серверы"**.
+2. Tap to button **"Test servers"**.
 
 3. Дождитесь завершения тестирования всех серверов.
 
@@ -43,7 +49,7 @@
     <img width="55%"  src="https://github.com/mansor427/IpScanner/assets/104245967/b09437c5-ffbc-49b9-ab64-fd138739dd66">
 </p>
 
--   **JavaScript (ES6+):** Для реализации основной логики приложения и тестирования серверов.
+-   **JavaScript (ES6+):** For main app and test logic/
   
 <p align="left" >
     <img width="55%"  src="https://github.com/mansor427/IpScanner/assets/104245967/b09437c5-ffbc-49b9-ab64-fd138739dd66">
