@@ -18,7 +18,7 @@
    <img  width="35%"  src="https://github.com/mansor427/mansor427/assets/104245967/15a9fad4-d747-464a-9cf9-e6304e03872d">
 </p>
 
-- **Full list DNS:**Collect dozen of DNS servers
+- **Full list DNS:** Collect dozen of DNS servers
 - **Precise speed test:**
 - **Finding best servers:** Display best DNS server 
 - **
