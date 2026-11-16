@@ -401,6 +401,11 @@ const translations = {
         filterAll: 'Все',
         filterRu: 'Только Россия',
         filterNotRu: 'Кроме России',
+        copyJson: 'JSON',
+        copyYaml: 'YAML',
+        copyFailed: 'Не удалось скопировать',
+        copyJsonTitle: 'Скопировать результаты в JSON',
+        copyYamlTitle: 'Скопировать результаты в YAML',
 
         // groups
         global: 'Глобальные',
@@ -509,6 +514,11 @@ const translations = {
         filterAll: 'All',
         filterRu: 'Russia Only',
         filterNotRu: 'Exclude Russia',
+        copyJson: 'JSON',
+        copyYaml: 'YAML',
+        copyFailed: 'Failed to copy',
+        copyJsonTitle: 'Copy results as JSON',
+        copyYamlTitle: 'Copy results as YAML',
 
         // groups
         global: 'Global',
