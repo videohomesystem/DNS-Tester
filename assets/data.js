@@ -395,6 +395,8 @@ const translations = {
         countryLabel: 'Страна',
         noHistory: 'История пуста',
         shareNotSupported: 'Отправка не поддерживается',
+        resultLabel: 'Результат',
+        bestServer: 'Лучший',
 
         // groups
         global: 'Глобальные',
@@ -497,6 +499,8 @@ const translations = {
         countryLabel: 'Country',
         noHistory: 'History is empty',
         shareNotSupported: 'Sharing not supported',
+        resultLabel: 'Result',
+        bestServer: 'Best',
 
         // groups
         global: 'Global',
