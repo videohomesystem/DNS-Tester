@@ -396,6 +396,8 @@ function showModal(contentHtml) {
     });
 }
 
+
+
 function showServerInfoModal(server) {
     const createRow = (label, val, id) => {
         if (!val || val === 'N/A') return '';
@@ -406,25 +408,33 @@ function showServerInfoModal(server) {
         </div>`;
     };
 
-    // --- Результат теста ---
-    let resultHtml = '';
-    if (server.status === 'success' && server.ping !== null) {
-        const color = getPingColor(server.ping);
-        const best = server.isBest
-            ? ` <i class="fa-solid fa-star text-yellow-400 text-xs"></i> <span class="text-yellow-500 font-semibold">${t('bestServer')}</span>`
-            : '';
-        resultHtml = `<p><strong>${t('resultLabel')}:</strong>
-            <span style="color:${color}" class="font-semibold">${server.ping} ms</span>${best}</p>`;
-    } else if (server.status === 'error') {
-        resultHtml = `<p><strong>${t('resultLabel')}:</strong>
-            <span class="text-red-400 font-semibold">${t('error')}</span></p>`;
-    } else if (server.status === 'loading') {
-        resultHtml = `<p><strong>${t('resultLabel')}:</strong>
-            <span class="text-gray-400">${t('checking')}</span></p>`;
-    } else {
-        resultHtml = `<p><strong>${t('resultLabel')}:</strong>
-            <span class="text-gray-400">${t('tested')}</span></p>`;
-    }
+   let resultHtml = '';
+if (server.status === 'success' && server.ping !== null) {
+    const color = getPingColor(server.ping);
+    // Полупрозрачная подложка того же цвета, что и градиент в списке
+    const bg = color.replace('hsl', 'hsla').replace(')', ', 0.15)');
+    const border = color.replace('hsl', 'hsla').replace(')', ', 0.45)');
+    const best = server.isBest
+        ? ` <i class="fa-solid fa-star text-yellow-500 text-xs"></i> <span class="font-semibold">${t('bestServer')}</span>`
+        : '';
+    resultHtml = `<p><strong>${t('resultLabel')}:</strong>
+        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-semibold"
+              style="background:${bg}; border:1px solid ${border}; color:var(--text-color);">
+            ${server.ping} ms${best}
+        </span></p>`;
+} else if (server.status === 'error') {
+    resultHtml = `<p><strong>${t('resultLabel')}:</strong>
+        <span class="inline-flex items-center px-2 py-0.5 rounded-md font-semibold"
+              style="background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.4); color:var(--text-color);">
+            ${t('error')}
+        </span></p>`;
+} else if (server.status === 'loading') {
+    resultHtml = `<p><strong>${t('resultLabel')}:</strong>
+        <span class="text-gray-500">${t('checking')}</span></p>`;
+} else {
+    resultHtml = `<p><strong>${t('resultLabel')}:</strong>
+        <span class="text-gray-500">${t('tested')}</span></p>`;
+}
 
     const content = `
         <h3 class="text-base font-bold mb-3 text-center">${server.name}</h3>
