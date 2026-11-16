@@ -103,6 +103,16 @@
         </button>
       </div>
 
+      <!-- Country filter -->
+<div class="px-3 pb-2 flex items-center gap-2 text-xs">
+    <span class="text-gray-500" data-i18n="filterLabel">Фильтр:</span>
+    <div id="country-filter" class="flex gap-1">
+        <button data-filter="all" class="filter-btn px-2 py-1 rounded-lg bg-black/10 hover:bg-black/20 transition" data-i18n="filterAll">Все</button>
+        <button data-filter="ru"  class="filter-btn px-2 py-1 rounded-lg bg-black/10 hover:bg-black/20 transition" data-i18n="filterRu">Только Россия</button>
+        <button data-filter="not-ru" class="filter-btn px-2 py-1 rounded-lg bg-black/10 hover:bg-black/20 transition" data-i18n="filterNotRu">Кроме России</button>
+    </div>
+</div>
+
       <main id="dns-list" class="flex-grow p-2 overflow-y-auto custom-scrollbar grid grid-cols-1 sm:grid-cols-2 gap-2 content-start">
         <!-- Servers will be inserted here by JS -->
       </main>
