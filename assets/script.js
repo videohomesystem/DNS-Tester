@@ -1,8 +1,8 @@
 // --- Global State ---
 let servers = [];
 let isChecking = false;
-let currentLang = 'en';
-const langOrder = ['en'];
+let currentLang = localStorage.getItem('dns_checker_lang') || 'ru';
+const langOrder = ['ru', 'en'];
 
 // --- DOM Elements ---
 const elements = {
@@ -32,32 +32,55 @@ const elements = {
     closeSharePage: document.getElementById('close-share-page'),
 };
 
-// --- Helper Functions ---
-function t(key) {
-    if (typeof i18n !== 'undefined' && i18n[currentLang] && i18n[currentLang][key]) {
-       return i18n[currentLang][key];
+// --- Translation helper (with cache) ---
+const _tCache = new Map();
+
+function t(key, vars) {
+    if (key == null) return '';
+    const cacheKey = currentLang + '::' + key;
+    let str = _tCache.get(cacheKey);
+    if (str === undefined) {
+        const dict = (typeof translations !== 'undefined' && translations[currentLang])
+            || (typeof translations !== 'undefined' && translations.en)
+            || {};
+        str = dict[key] ?? key;
+        _tCache.set(cacheKey, str);
     }
-    return key;
+    if (vars) {
+        for (const k in vars) str = str.replace(`{${k}}`, vars[k]);
+    }
+    return str;
+}
+
+function tCountry(code) {
+    if (!code) return '';
+    const dict = (typeof translations !== 'undefined' && translations[currentLang]) || {};
+    return (dict.countries && dict.countries[code]) || code;
 }
 
 function getPingColor(ping) {
     if (ping === null) return 'hsl(0, 0%, 50%)';
     const saturation = 90;
     const lightness = 50;
-    let hue = ping <= 300 ? 120 - (ping / 300) * 60 : (ping <= 600 ? 60 - ((ping - 300) / 300) * 60 : 0);
+    const hue = ping <= 300 ? 120 - (ping / 300) * 60 : (ping <= 600 ? 60 - ((ping - 300) / 300) * 60 : 0);
     return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
 }
 
 function getGradientWidthPercentage(ping) {
     if (ping === null) return 0;
-    const maxPing = 800;
-    const percentage = (ping / maxPing) * 100;
+    const percentage = (ping / 800) * 100;
     return Math.max(5, Math.min(100, percentage));
 }
 
-// --- Local Storage Management ---
+function formatDate(iso) {
+    const locale = currentLang === 'ru' ? 'ru-RU' : 'en-GB';
+    try { return new Date(iso).toLocaleString(locale); } catch { return iso; }
+}
+
+// --- Local Storage ---
 function getCustomServers() {
-    return JSON.parse(localStorage.getItem('customDnsServers') || '[]');
+    try { return JSON.parse(localStorage.getItem('customDnsServers') || '[]'); }
+    catch { return []; }
 }
 
 function saveCustomServers(customServers) {
@@ -65,71 +88,84 @@ function saveCustomServers(customServers) {
 }
 
 function loadServers() {
-    const initialCopy = typeof initialServers !== 'undefined' ? JSON.parse(JSON.stringify(initialServers)) : [];
-    const customServers = getCustomServers();
-    servers = [...initialCopy, ...customServers];
+    const initialCopy = typeof initialServers !== 'undefined'
+        ? JSON.parse(JSON.stringify(initialServers))
+        : [];
+    servers = [...initialCopy, ...getCustomServers()];
 }
 
-// --- Core Logic ---
+// --- Language ---
 function updateLanguage(lang) {
-    if (typeof i18n === 'undefined') return;
-    
+    if (typeof translations === 'undefined' || !translations[lang]) return;
+
     currentLang = lang;
-    const data = i18n[lang];
+    const data = translations[lang];
 
     document.documentElement.lang = lang;
     document.documentElement.dir = data.dir;
-    elements.langFlag.src = data.flag;
-    document.body.style.fontFamily = data.font;
+    if (elements.langFlag) elements.langFlag.src = data.flag;
+    if (data.font) document.body.style.fontFamily = data.font;
 
     document.querySelectorAll('[data-i18n]').forEach(el => {
-        const key = el.getAttribute('data-i18n');
-        if (data[key]) el.textContent = data[key];
+        el.textContent = t(el.getAttribute('data-i18n'));
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        el.placeholder = t(el.getAttribute('data-i18n-placeholder'));
+    });
+    document.querySelectorAll('[data-i18n-title]').forEach(el => {
+        el.title = t(el.getAttribute('data-i18n-title'));
     });
 
-    if (elements.searchBox) elements.searchBox.placeholder = data.searchPlaceholder;
+    if (elements.searchBox) elements.searchBox.placeholder = t('searchPlaceholder');
 
     updateMainButton();
     renderList();
     localStorage.setItem('dns_checker_lang', lang);
 }
 
+function toggleLanguage() {
+    const idx = langOrder.indexOf(currentLang);
+    updateLanguage(langOrder[(idx + 1) % langOrder.length]);
+}
+
+// --- Render ---
 function renderList() {
-    const searchTerm = elements.searchBox.value.toLowerCase();
-    
+    const searchTerm = (elements.searchBox?.value || '').toLowerCase();
+
     const filteredServers = servers.filter(s =>
         s.name.toLowerCase().includes(searchTerm) ||
         t(s.group).toLowerCase().includes(searchTerm) ||
+        (s.country && tCountry(s.country).toLowerCase().includes(searchTerm)) ||
         (s.url && s.url.toLowerCase().includes(searchTerm))
     );
 
     elements.dnsList.innerHTML = '';
     if (filteredServers.length === 0) {
-        elements.dnsList.innerHTML = `<p class="text-center text-gray-400 col-span-full mt-8">${t('noServers')}</p>`;
+        elements.dnsList.innerHTML =
+            `<p class="text-center text-gray-400 col-span-full mt-8">${t('noServers')}</p>`;
         return;
     }
 
     filteredServers.forEach((server, index) => {
         const div = document.createElement('div');
-        div.className = `dns-item-box flex items-center justify-between p-2.5 rounded-xl hover:!bg-[var(--hover-bg)] cursor-pointer`;
+        div.className = 'dns-item-box flex items-center justify-between p-2.5 rounded-xl hover:!bg-[var(--hover-bg)] cursor-pointer';
         div.style.opacity = '0';
         div.style.animation = `fadeInUp 0.5s ease-out ${index * 0.03}s forwards`;
-        
         div.onclick = () => showServerInfoModal(server);
 
         let statusHtml;
         div.style.backgroundImage = 'none';
 
         switch (server.status) {
-            case 'success':
+            case 'success': {
                 const pingColor = getPingColor(server.ping);
                 const gradientColor = pingColor.replace('hsl', 'hsla').replace(')', ', 0.35)');
                 const widthPercent = getGradientWidthPercentage(server.ping);
-                const dir = document.documentElement.dir === 'rtl' ? 'to left' : 'to right';
-                div.style.backgroundImage = `linear-gradient(${dir}, ${gradientColor} ${widthPercent}%, transparent ${widthPercent}%)`;
-                
+                div.style.backgroundImage =
+                    `linear-gradient(to right, ${gradientColor} ${widthPercent}%, transparent ${widthPercent}%)`;
                 statusHtml = `<div class="flex items-center justify-end text-xs"><span style="color: ${pingColor};" class="text-lg mx-1.5">●</span><span class="font-semibold">${server.ping}ms</span></div>`;
                 break;
+            }
             case 'error':
                 statusHtml = `<div class="flex items-center justify-end text-xs"><span class="text-red-400 text-lg mx-1.5">●</span><span class="text-gray-400">${t('error')}</span></div>`;
                 break;
@@ -140,8 +176,11 @@ function renderList() {
                 statusHtml = '';
         }
 
-        const bestIcon = server.isBest ? `<i class="fa-solid fa-star text-yellow-400 mx-2 text-xs"></i>` : '';
-        const deleteButton = server.isCustom ? `<button data-server-id="${server.id}" class="delete-button p-1 text-[var(--icon-color)] hover:text-red-500 transition-colors z-10"><i class="fa-solid fa-trash"></i></button>` : '';
+        const bestIcon = server.isBest
+            ? `<i class="fa-solid fa-star text-yellow-400 mx-2 text-xs"></i>` : '';
+        const deleteButton = server.isCustom
+            ? `<button data-server-id="${server.id}" class="delete-button p-1 text-[var(--icon-color)] hover:text-red-500 transition-colors z-10"><i class="fa-solid fa-trash"></i></button>`
+            : '';
 
         div.innerHTML = `
             <div class="flex items-center flex-grow min-w-0 gap-1 pointer-events-none">
@@ -162,8 +201,8 @@ function renderList() {
             const serverId = e.currentTarget.dataset.serverId;
             const server = servers.find(s => s.id === serverId);
             if (!server) return;
-            
-            const msg = t('deleteConfirmMsg').replace('{name}', `<span class="font-bold mx-1">${server.name}</span>`);
+
+            const msg = t('deleteConfirmMsg', { name: `<span class="font-bold mx-1">${server.name}</span>` });
             const content = `
                 <h3 class="text-lg font-bold mb-4">${t('deleteConfirmTitle')}</h3>
                 <p class="mb-5">${msg}</p>
@@ -174,8 +213,7 @@ function renderList() {
             const modal = createCustomModal(content);
             modal.querySelector('.modal-cancel-button').onclick = () => removeModal(modal);
             modal.querySelector('.modal-confirm-delete').onclick = () => {
-                let custom = getCustomServers().filter(s => s.id !== serverId);
-                saveCustomServers(custom);
+                saveCustomServers(getCustomServers().filter(s => s.id !== serverId));
                 loadServers();
                 renderList();
                 removeModal(modal);
@@ -195,59 +233,61 @@ function updateChart(percent) {
     elements.chartPercent.textContent = `${Math.round(percent)}%`;
 }
 
-// --- Actions ---
-//async function fetchUserIP() {
-//    try {
-//        // const response = await fetch('https://ipapi.co/json/');
-//        const response = await fetch('https://ifconfig.me/all.json');
-//        if (!response.ok) throw new Error();
-//        const data = await response.json();
-//        // elements.ipAddress.textContent = data.ip;
-//        elements.ipAddress.textContent = data.ip_addr;
-//        elements.geolocation.textContent = `${data.city}, ${data.country_name}`;
-//        //if (data.country_code) {
-//         //   elements.countryFlag.src = `https://flagcdn.com/w20/${data.country_code.toLowerCase()}.png`;
-//          //  elements.countryFlag.classList.remove('hidden');
-//        }
-//    } catch {
-//       elements.ipAddress.textContent = '---';
-//        elements.geolocation.textContent = '---';
-//    }
-//}
+// --- IP ---
+async function fetchUserIP() {
+    try {
+        const res = await fetch('https://ifconfig.me/all.json');
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        if (elements.ipAddress) elements.ipAddress.textContent = data.ip_addr || '---';
+        if (elements.geolocation) {
+            const parts = [data.city, data.country].filter(Boolean);
+            elements.geolocation.textContent = parts.length ? parts.join(', ') : '---';
+        }
+    } catch {
+        if (elements.ipAddress) elements.ipAddress.textContent = '---';
+        if (elements.geolocation) elements.geolocation.textContent = '---';
+    }
+}
 
-// *** UPDATED FUNCTION: Warm-up + Measurement ***
+// --- Ping measurement ---
 async function measurePing(url) {
-    // 1. Warm-up Phase: Create connection and resolve DNS
-    // We ignore the result of this fetch, it's just to "warm up" the route.
     try {
         const warmupController = new AbortController();
-        // Give it a short timeout (1.5s), if it takes longer, the server is likely slow anyway
         setTimeout(() => warmupController.abort(), 1500);
-        await fetch(url, { 
-            method: 'HEAD', 
-            mode: 'no-cors', 
-            cache: 'no-cache', 
-            signal: warmupController.signal 
+        await fetch(url, {
+            method: 'HEAD', mode: 'no-cors', cache: 'no-cache',
+            signal: warmupController.signal
         });
-    } catch (e) {
-        // Ignore warm-up errors
-    }
+    } catch { /* ignore warm-up errors */ }
 
-    // 2. Measurement Phase: Actual Ping Test
     const startTime = performance.now();
     try {
         const controller = new AbortController();
-        setTimeout(() => controller.abort(), 4000); // 4s timeout for real test
-        await fetch(url, { 
-            method: 'HEAD', 
-            mode: 'no-cors', 
-            cache: 'no-cache', 
-            signal: controller.signal 
+        setTimeout(() => controller.abort(), 4000);
+        await fetch(url, {
+            method: 'HEAD', mode: 'no-cors', cache: 'no-cache',
+            signal: controller.signal
         });
         return Math.round(performance.now() - startTime);
-    } catch { 
-        return null; 
+    } catch {
+        return null;
     }
+}
+
+// Simple concurrency pool (limits parallel checks)
+async function pool(items, limit, worker) {
+    const results = new Array(items.length);
+    let next = 0;
+    const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
+        while (true) {
+            const i = next++;
+            if (i >= items.length) return;
+            results[i] = await worker(items[i], i);
+        }
+    });
+    await Promise.all(runners);
+    return results;
 }
 
 async function checkDnsServers() {
@@ -256,17 +296,13 @@ async function checkDnsServers() {
     renderList();
     updateMainButton();
     updateChart(0);
-    elements.chartPercent.textContent = `...`;
+    elements.chartPercent.textContent = '...';
 
-    // Process servers in batches to avoid browser networking bottlenecks
-    // However, with Promise.all and fetch, browsers manage the queue.
-    // The previous implementation is fine, but warming up adds time.
-    
-    await Promise.all(servers.map(async server => {
+    await pool(servers, 8, async (server) => {
         const ping = await measurePing(server.url);
         server.status = ping !== null ? 'success' : 'error';
         server.ping = ping;
-    }));
+    });
 
     const successful = servers.filter(s => s.status === 'success');
     if (successful.length > 0) {
@@ -280,7 +316,7 @@ async function checkDnsServers() {
     });
 
     isChecking = false;
-    updateChart(servers.length > 0 ? (successful.length / servers.length) * 100 : 0);
+    updateChart(servers.length ? (successful.length / servers.length) * 100 : 0);
     saveHistory();
     elements.shareButton.disabled = false;
     renderList();
@@ -288,9 +324,13 @@ async function checkDnsServers() {
 }
 
 function saveHistory() {
-    let history = JSON.parse(localStorage.getItem('dnsTestHistory') || '[]');
+    const history = JSON.parse(localStorage.getItem('dnsTestHistory') || '[]');
     const top = servers.find(s => s.isBest);
-    history.unshift({ date: new Date().toLocaleString(), topServer: top ? top.name : 'N/A', ping: top ? top.ping : 'N/A' });
+    history.unshift({
+        date: new Date().toISOString(),
+        topServer: top ? top.name : 'N/A',
+        ping: top ? top.ping : 'N/A'
+    });
     localStorage.setItem('dnsTestHistory', JSON.stringify(history.slice(0, 5)));
 }
 
@@ -299,8 +339,35 @@ function createCustomModal(contentHtml) {
     const modal = document.createElement('div');
     modal.className = 'fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[100] transition-opacity duration-300 opacity-0';
     modal.innerHTML = `<div class="bg-[var(--card-bg)] backdrop-blur-xl p-5 rounded-2xl shadow-lg w-full max-w-md transition-transform duration-300 scale-95">${contentHtml}</div>`;
+
+    // Клик по фону (не по карточке) — закрыть
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) removeModal(modal);
+    });
+
+    // Esc — закрыть
+    const onKey = (e) => {
+        if (e.key === 'Escape') {
+            document.removeEventListener('keydown', onKey);
+            removeModal(modal);
+        }
+    };
+    document.addEventListener('keydown', onKey);
+
+    // Чистим слушатель, когда модалка реально удалена
+    const observer = new MutationObserver(() => {
+        if (!document.body.contains(modal)) {
+            document.removeEventListener('keydown', onKey);
+            observer.disconnect();
+        }
+    });
+    observer.observe(document.body, { childList: true });
+
     document.body.appendChild(modal);
-    setTimeout(() => { modal.classList.add('opacity-100'); modal.firstElementChild.classList.add('scale-100'); }, 10);
+    setTimeout(() => {
+        modal.classList.add('opacity-100');
+        modal.firstElementChild.classList.add('scale-100');
+    }, 10);
     return modal;
 }
 
@@ -323,7 +390,7 @@ function showModal(contentHtml) {
             navigator.clipboard.writeText(text).then(() => {
                 const original = copyBtn.innerText;
                 copyBtn.innerText = t('copied');
-                setTimeout(() => copyBtn.innerText = original, 1500);
+                setTimeout(() => { copyBtn.innerText = original; }, 1500);
             });
         };
     });
@@ -342,9 +409,12 @@ function showServerInfoModal(server) {
     const content = `
         <h3 class="text-base font-bold mb-3 text-center">${server.name}</h3>
         <div class="text-xs space-y-2 mb-3">
-            <p><strong>Group:</strong> ${t(server.group)}</p>
-            <p><strong>Features:</strong> ${server.features.map(f => t(f)).join(', ')}</p>
-            <p><strong>Privacy:</strong> ${t(server.privacy)}</p>
+            <p><strong>${t('groupLabel')}:</strong> ${t(server.group)}</p>
+            <p><strong>${t('featuresLabel')}:</strong> ${server.features.map(f => t(f)).join(', ')}</p>
+            <p><strong>${t('privacyLabel')}:</strong> ${t(server.privacy)}</p>
+            ${server.country && server.country !== 'N/A'
+                ? `<p><strong>${t('countryLabel')}:</strong> ${tCountry(server.country)}</p>`
+                : ''}
         </div>
         ${createRow('DNS over HTTPS', server.url, `url-${server.id}`)}
         ${createRow('IPv4', server.ipv4, `ipv4-${server.id}`)}
@@ -360,16 +430,13 @@ elements.searchBox.addEventListener('input', renderList);
 elements.themeToggle.addEventListener('click', () => {
     const isDark = document.documentElement.classList.toggle('dark');
     localStorage.setItem('dns_checker_theme', isDark ? 'dark' : 'light');
-    
     elements.themeSun.classList.toggle('hidden', isDark);
     elements.themeMoon.classList.toggle('hidden', !isDark);
 });
 
-//elements.langToggle.addEventListener('click', () => {
-//    let index = langOrder.indexOf(currentLang);
-//    index = (index + 1) % langOrder.length;
-//    updateLanguage(langOrder[index]);
-//});
+if (elements.langToggle) {
+    elements.langToggle.addEventListener('click', toggleLanguage);
+}
 
 elements.addDnsButton.addEventListener('click', () => {
     const content = `
@@ -386,15 +453,27 @@ elements.addDnsButton.addEventListener('click', () => {
     modal.querySelector('.c-cancel').onclick = () => removeModal(modal);
     modal.querySelector('form').onsubmit = (e) => {
         e.preventDefault();
-        const name = document.getElementById('c-name').value;
-        const url = document.getElementById('c-url').value;
+        const name = document.getElementById('c-name').value.trim();
+        const url = document.getElementById('c-url').value.trim();
         if (!name || !url) return alert(t('errorEmpty'));
-        
-        const newServer = { id: `custom-${Date.now()}`, name, url, features: ['سفارشی'], privacy: 'نامشخص', group: 'سفارشی', isCustom: true, status: 'neutral', ping: null, ipv4: 'N/A', ipv6: 'N/A' };
+
+        const newServer = {
+            id: `custom-${Date.now()}`,
+            name, url,
+            features: ['custom'],
+            privacy: 'unknown',
+            group: 'custom',
+            country: 'N/A',
+            isCustom: true,
+            status: 'neutral',
+            ping: null,
+            ipv4: 'N/A',
+            ipv6: 'N/A'
+        };
         const customs = getCustomServers();
         customs.push(newServer);
         saveCustomServers(customs);
-        
+
         loadServers();
         renderList();
         removeModal(modal);
@@ -404,22 +483,26 @@ elements.addDnsButton.addEventListener('click', () => {
 elements.historyButton.addEventListener('click', () => {
     const history = JSON.parse(localStorage.getItem('dnsTestHistory') || '[]');
     let html = `<h3 class="text-lg font-bold mb-4">${t('history')}</h3>`;
-    if (history.length === 0) html += `<p>${t('tested')} - Empty</p>`;
-    else {
+    if (history.length === 0) {
+        html += `<p>${t('noHistory')}</p>`;
+    } else {
         html += `<ul class="space-y-2 text-sm">`;
-        history.forEach(h => html += `<li class="p-2 bg-black/10 rounded-lg flex justify-between"><span>${h.date.split(',')[0]}</span><span class="font-bold">${h.topServer} (${h.ping}ms)</span></li>`);
+        history.forEach(h => {
+            html += `<li class="p-2 bg-black/10 rounded-lg flex justify-between"><span>${formatDate(h.date)}</span><span class="font-bold">${h.topServer} (${h.ping}ms)</span></li>`;
+        });
         html += `</ul>`;
     }
     showModal(html);
 });
 
-// Share & Download Logic
+// --- Share & Download ---
 elements.shareButton.addEventListener('click', () => {
     elements.shareList.innerHTML = '';
     servers.forEach(s => {
         const color = s.status === 'success' ? getPingColor(s.ping) : '#9ca3af';
         const txt = s.status === 'success' ? `${s.ping}ms` : '-';
-        elements.shareList.innerHTML += `<div class="dns-item-box flex flex-col items-center p-2 rounded-lg"><span class="truncate w-full text-center font-medium">${s.name}</span><span style="color:${color}" class="font-bold">${txt}</span></div>`;
+        elements.shareList.innerHTML +=
+            `<div class="dns-item-box flex flex-col items-center p-2 rounded-lg"><span class="truncate w-full text-center font-medium">${s.name}</span><span style="color:${color}" class="font-bold">${txt}</span></div>`;
     });
     elements.sharePage.classList.remove('hidden');
     setTimeout(() => elements.sharePage.classList.remove('opacity-0'), 10);
@@ -431,7 +514,10 @@ elements.closeSharePage.addEventListener('click', () => {
 });
 
 elements.downloadButton.addEventListener('click', () => {
-    html2canvas(elements.shareContentArea, { backgroundColor: document.documentElement.classList.contains('dark') ? '#0D1117' : '#F9FAFB', scale: 2 }).then(canvas => {
+    html2canvas(elements.shareContentArea, {
+        backgroundColor: document.documentElement.classList.contains('dark') ? '#0D1117' : '#F9FAFB',
+        scale: 2
+    }).then(canvas => {
         const link = document.createElement('a');
         link.download = 'dns-result.png';
         link.href = canvas.toDataURL();
@@ -440,30 +526,32 @@ elements.downloadButton.addEventListener('click', () => {
 });
 
 elements.shareScreenshotButton.addEventListener('click', () => {
-    html2canvas(elements.shareContentArea, { backgroundColor: document.documentElement.classList.contains('dark') ? '#0D1117' : '#F9FAFB', scale: 2 }).then(canvas => {
+    html2canvas(elements.shareContentArea, {
+        backgroundColor: document.documentElement.classList.contains('dark') ? '#0D1117' : '#F9FAFB',
+        scale: 2
+    }).then(canvas => {
         canvas.toBlob(blob => {
             const file = new File([blob], 'dns-result.png', { type: 'image/png' });
-            if (navigator.canShare?.({ files: [file] })) navigator.share({ files: [file], title: 'DNS Result' });
-            else alert('Sharing not supported');
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                navigator.share({ files: [file], title: 'DNS Result' });
+            } else {
+                alert(t('shareNotSupported'));
+            }
         });
     });
 });
 
 // --- Initialization ---
 (function init() {
-    // 1. Load Theme
     const theme = localStorage.getItem('dns_checker_theme') || 'dark';
     document.documentElement.classList.toggle('dark', theme === 'dark');
     elements.themeSun.classList.toggle('hidden', theme !== 'dark');
     elements.themeMoon.classList.toggle('hidden', theme === 'dark');
 
-    // 2. Load Servers
     loadServers();
 
-    // 3. Load Language
-    const savedLang = localStorage.getItem('dns_checker_lang') || 'fa';
+    const savedLang = localStorage.getItem('dns_checker_lang') || 'ru';
     updateLanguage(savedLang);
 
-    // 4. Fetch IP
-    fetchUserIP();
+    if (typeof fetchUserIP === 'function') fetchUserIP();
 })();
