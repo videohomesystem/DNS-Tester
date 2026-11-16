@@ -363,7 +363,7 @@ const translations = {
         activeServers: 'Активные серверы',
         history: 'История',
         share: 'Поделиться',
-        searchPlaceholder: 'Поиск сервера...',
+        searchPlaceholder: 'Поиск сервера - в т.ч. по стране',
         checkServers: 'Проверить серверы',
         checking: 'Проверка...',
         shareResults: 'Результаты DNS-теста',
@@ -397,6 +397,10 @@ const translations = {
         shareNotSupported: 'Отправка не поддерживается',
         resultLabel: 'Результат',
         bestServer: 'Лучший',
+        filterLabel: 'Фильтр:',
+        filterAll: 'Все',
+        filterRu: 'Только Россия',
+        filterNotRu: 'Кроме России',
 
         // groups
         global: 'Глобальные',
@@ -467,7 +471,7 @@ const translations = {
         activeServers: 'Active Servers',
         history: 'History',
         share: 'Share',
-        searchPlaceholder: 'Search server...',
+        searchPlaceholder: 'Search server - contry including',
         checkServers: 'Check Servers',
         checking: 'Checking...',
         shareResults: 'DNS Test Results',
@@ -501,6 +505,10 @@ const translations = {
         shareNotSupported: 'Sharing not supported',
         resultLabel: 'Result',
         bestServer: 'Best',
+        filterLabel: 'Filter:',
+        filterAll: 'All',
+        filterRu: 'Russia Only',
+        filterNotRu: 'Exclude Russia',
 
         // groups
         global: 'Global',
