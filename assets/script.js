@@ -31,6 +31,8 @@ const elements = {
     downloadButton: document.getElementById('download-button'),
     shareScreenshotButton: document.getElementById('share-screenshot-button'),
     closeSharePage: document.getElementById('close-share-page'),
+    copyJsonButton: document.getElementById('copy-json-button'),
+    copyYamlButton: document.getElementById('copy-yaml-button'),
 };
 
 // --- Translation helper (with cache) ---
@@ -76,6 +78,77 @@ function getGradientWidthPercentage(ping) {
 function formatDate(iso) {
     const locale = currentLang === 'ru' ? 'ru-RU' : 'en-GB';
     try { return new Date(iso).toLocaleString(locale); } catch { return iso; }
+}
+
+// --- Export helpers ---
+function buildExportSnapshot() {
+    return servers.map(s => ({
+        name: s.name,
+        group: s.group,
+        country: s.country || 'N/A',
+        privacy: s.privacy,
+        features: s.features,
+        url: s.url,
+        ipv4: s.ipv4,
+        ipv6: s.ipv6,
+        status: s.status,
+        ping: s.ping,
+        isBest: !!s.isBest,
+    }));
+}
+
+function toYaml(value, indent = 0) {
+    const pad = '  '.repeat(indent);
+    if (value === null || value === undefined) return 'null';
+
+    if (Array.isArray(value)) {
+        if (value.length === 0) return '[]';
+        return value.map(item => {
+            if (item !== null && typeof item === 'object') {
+                // Первый ключ — на той же строке, что и дефис
+                const lines = toYaml(item, indent + 1).split('\n');
+                lines[0] = `${pad}- ${lines[0].trimStart()}`;
+                return lines.join('\n');
+            }
+            return `${pad}- ${toYaml(item, 0)}`;
+        }).join('\n');
+    }
+
+    if (typeof value === 'object') {
+        const keys = Object.keys(value);
+        if (keys.length === 0) return '{}';
+        return keys.map(key => {
+            const v = value[key];
+            if (v !== null && typeof v === 'object') {
+                return `${pad}${key}:\n${toYaml(v, indent + 1)}`;
+            }
+            return `${pad}${key}: ${toYaml(v, 0)}`;
+        }).join('\n');
+    }
+
+    if (typeof value === 'string') {
+        // Простые строки — без кавычек, остальные — в двойных
+        if (/^[A-Za-z0-9._/:\-]+$/.test(value) && value !== '') return value;
+        return JSON.stringify(value);
+    }
+
+    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+    return JSON.stringify(value);
+}
+
+async function copyToClipboard(text, button) {
+    try {
+        await navigator.clipboard.writeText(text);
+        const original = button.innerText;
+        button.innerText = t('copied');
+        button.disabled = true;
+        setTimeout(() => {
+            button.innerText = original;
+            button.disabled = false;
+        }, 1500);
+    } catch {
+        alert(t('copyFailed'));
+    }
 }
 
 // --- Local Storage ---
@@ -138,6 +211,13 @@ function updateFilterButtons() {
         btn.classList.toggle('bg-black/10', !active);
         btn.classList.toggle('hover:bg-black/20', !active);
     });
+}
+
+// --- Export buttons state ---
+function updateExportButtons() {
+    const hasResults = servers.some(s => s.status === 'success' || s.status === 'error');
+    if (elements.copyJsonButton) elements.copyJsonButton.disabled = !hasResults;
+    if (elements.copyYamlButton) elements.copyYamlButton.disabled = !hasResults;
 }
 
 // --- Render ---
@@ -242,6 +322,7 @@ function renderList() {
     });
 
     updateFilterButtons();
+    updateExportButtons();
 }
 
 function updateMainButton() {
@@ -498,6 +579,20 @@ document.querySelectorAll('#country-filter .filter-btn').forEach(btn => {
     });
 });
 
+if (elements.copyJsonButton) {
+    elements.copyJsonButton.addEventListener('click', () => {
+        const json = JSON.stringify(buildExportSnapshot(), null, 2);
+        copyToClipboard(json, elements.copyJsonButton);
+    });
+}
+
+if (elements.copyYamlButton) {
+    elements.copyYamlButton.addEventListener('click', () => {
+        const yaml = toYaml(buildExportSnapshot());
+        copyToClipboard(yaml, elements.copyYamlButton);
+    });
+}
+
 elements.addDnsButton.addEventListener('click', () => {
     const content = `
         <h3 class="text-lg font-bold mb-4">${t('addCustomDns')}</h3>
@@ -614,6 +709,7 @@ elements.shareScreenshotButton.addEventListener('click', () => {
     updateLanguage(savedLang);
 
     updateFilterButtons();
+    updateExportButtons();
 
     if (typeof fetchUserIP === 'function') fetchUserIP();
 })();
