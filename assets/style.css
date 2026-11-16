@@ -29,10 +29,11 @@ body {
 /* Background Animation */
 .animated-bg {
     position: fixed;
-    top: 0; left: 0; width: 100%; height: 100%; z-index: -1;
+    inset: 0;
+    z-index: -1;
     background: linear-gradient(45deg, #0a192f, #133a75, #5a189a, #9d4edd);
     background-size: 400% 400%;
-    animation: gradient-animation 15s ease infinite;
+    animation: gradient-animation 30s ease infinite;
     transition: background 0.5s ease-in-out;
 }
 
@@ -41,16 +42,21 @@ html:not(.dark) .animated-bg {
 }
 
 @keyframes gradient-animation {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
     100% { background-position: 0% 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .animated-bg { animation: none; }
+    .loader { animation-duration: 2s; }
 }
 
 /* Glass Effect */
 .glass-container {
     background: var(--card-bg);
-    backdrop-filter: blur(25px);
-    -webkit-backdrop-filter: blur(25px);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
     border: 1px solid var(--border-color);
     transition: background-color 0.3s, border-color 0.3s;
     height: calc(100dvh - 2rem);
@@ -94,19 +100,11 @@ html:not(.dark) .animated-bg {
     border: 1px solid var(--item-border-color);
     background-color: var(--card-bg);
     background-repeat: no-repeat;
-    transition: background 0.5s ease, opacity 0.5s ease-out;
+    background-position: left;
+    transition: background-color 0.3s ease, opacity 0.5s ease-out;
 }
-
-/* RTL Support in Gradients */
-[dir="rtl"] .dns-item-box { background-position: right; }
-[dir="ltr"] .dns-item-box { background-position: left; }
 
 @keyframes fadeInUp {
     from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+    to   { opacity: 1; transform: translateY(0); }
 }
-
-/* Utilities for Direction */
-[dir="rtl"] .rtl\:mr-2 { margin-right: 0.5rem; }
-[dir="ltr"] .ltr\:ml-2 { margin-left: 0.5rem; }
-[dir="rtl"] .rtl\:rotate-180 { transform: rotate(180deg); }
