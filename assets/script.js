@@ -2,6 +2,7 @@
 let servers = [];
 let isChecking = false;
 let currentLang = localStorage.getItem('dns_checker_lang') || 'ru';
+let countryFilter = localStorage.getItem('dns_country_filter') || 'all'; // 'all' | 'ru' | 'not-ru'
 const langOrder = ['ru', 'en'];
 
 // --- DOM Elements ---
@@ -128,21 +129,40 @@ function toggleLanguage() {
     updateLanguage(langOrder[(idx + 1) % langOrder.length]);
 }
 
+// --- Country filter ---
+function updateFilterButtons() {
+    document.querySelectorAll('#country-filter .filter-btn').forEach(btn => {
+        const active = btn.dataset.filter === countryFilter;
+        btn.classList.toggle('!bg-blue-600', active);
+        btn.classList.toggle('!text-white', active);
+        btn.classList.toggle('bg-black/10', !active);
+        btn.classList.toggle('hover:bg-black/20', !active);
+    });
+}
+
 // --- Render ---
 function renderList() {
     const searchTerm = (elements.searchBox?.value || '').toLowerCase();
 
-    const filteredServers = servers.filter(s =>
-        s.name.toLowerCase().includes(searchTerm) ||
-        t(s.group).toLowerCase().includes(searchTerm) ||
-        (s.country && tCountry(s.country).toLowerCase().includes(searchTerm)) ||
-        (s.url && s.url.toLowerCase().includes(searchTerm))
-    );
+    const filteredServers = servers.filter(s => {
+        const matchesSearch =
+            s.name.toLowerCase().includes(searchTerm) ||
+            t(s.group).toLowerCase().includes(searchTerm) ||
+            (s.country && tCountry(s.country).toLowerCase().includes(searchTerm)) ||
+            (s.url && s.url.toLowerCase().includes(searchTerm));
+
+        if (!matchesSearch) return false;
+
+        if (countryFilter === 'ru')     return s.country === 'RU';
+        if (countryFilter === 'not-ru') return s.country !== 'RU';
+        return true;
+    });
 
     elements.dnsList.innerHTML = '';
     if (filteredServers.length === 0) {
         elements.dnsList.innerHTML =
             `<p class="text-center text-gray-400 col-span-full mt-8">${t('noServers')}</p>`;
+        updateFilterButtons();
         return;
     }
 
@@ -220,6 +240,8 @@ function renderList() {
             };
         });
     });
+
+    updateFilterButtons();
 }
 
 function updateMainButton() {
@@ -396,8 +418,6 @@ function showModal(contentHtml) {
     });
 }
 
-
-
 function showServerInfoModal(server) {
     const createRow = (label, val, id) => {
         if (!val || val === 'N/A') return '';
@@ -408,33 +428,33 @@ function showServerInfoModal(server) {
         </div>`;
     };
 
-   let resultHtml = '';
-if (server.status === 'success' && server.ping !== null) {
-    const color = getPingColor(server.ping);
-    // Полупрозрачная подложка того же цвета, что и градиент в списке
-    const bg = color.replace('hsl', 'hsla').replace(')', ', 0.15)');
-    const border = color.replace('hsl', 'hsla').replace(')', ', 0.45)');
-    const best = server.isBest
-        ? ` <i class="fa-solid fa-star text-yellow-500 text-xs"></i> <span class="font-semibold">${t('bestServer')}</span>`
-        : '';
-    resultHtml = `<p><strong>${t('resultLabel')}:</strong>
-        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-semibold"
-              style="background:${bg}; border:1px solid ${border}; color:var(--text-color);">
-            ${server.ping} ms${best}
-        </span></p>`;
-} else if (server.status === 'error') {
-    resultHtml = `<p><strong>${t('resultLabel')}:</strong>
-        <span class="inline-flex items-center px-2 py-0.5 rounded-md font-semibold"
-              style="background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.4); color:var(--text-color);">
-            ${t('error')}
-        </span></p>`;
-} else if (server.status === 'loading') {
-    resultHtml = `<p><strong>${t('resultLabel')}:</strong>
-        <span class="text-gray-500">${t('checking')}</span></p>`;
-} else {
-    resultHtml = `<p><strong>${t('resultLabel')}:</strong>
-        <span class="text-gray-500">${t('tested')}</span></p>`;
-}
+    // --- Результат теста ---
+    let resultHtml = '';
+    if (server.status === 'success' && server.ping !== null) {
+        const color = getPingColor(server.ping);
+        const bg = color.replace('hsl', 'hsla').replace(')', ', 0.15)');
+        const border = color.replace('hsl', 'hsla').replace(')', ', 0.45)');
+        const best = server.isBest
+            ? ` <i class="fa-solid fa-star text-yellow-500 text-xs"></i> <span class="font-semibold">${t('bestServer')}</span>`
+            : '';
+        resultHtml = `<p><strong>${t('resultLabel')}:</strong>
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-semibold"
+                  style="background:${bg}; border:1px solid ${border}; color:var(--text-color);">
+                ${server.ping} ms${best}
+            </span></p>`;
+    } else if (server.status === 'error') {
+        resultHtml = `<p><strong>${t('resultLabel')}:</strong>
+            <span class="inline-flex items-center px-2 py-0.5 rounded-md font-semibold"
+                  style="background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.4); color:var(--text-color);">
+                ${t('error')}
+            </span></p>`;
+    } else if (server.status === 'loading') {
+        resultHtml = `<p><strong>${t('resultLabel')}:</strong>
+            <span class="text-gray-500">${t('checking')}</span></p>`;
+    } else {
+        resultHtml = `<p><strong>${t('resultLabel')}:</strong>
+            <span class="text-gray-500">${t('tested')}</span></p>`;
+    }
 
     const content = `
         <h3 class="text-base font-bold mb-3 text-center">${server.name}</h3>
@@ -468,6 +488,15 @@ elements.themeToggle.addEventListener('click', () => {
 if (elements.langToggle) {
     elements.langToggle.addEventListener('click', toggleLanguage);
 }
+
+// Фильтр по стране
+document.querySelectorAll('#country-filter .filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        countryFilter = btn.dataset.filter;
+        localStorage.setItem('dns_country_filter', countryFilter);
+        renderList();
+    });
+});
 
 elements.addDnsButton.addEventListener('click', () => {
     const content = `
@@ -583,6 +612,8 @@ elements.shareScreenshotButton.addEventListener('click', () => {
 
     const savedLang = localStorage.getItem('dns_checker_lang') || 'ru';
     updateLanguage(savedLang);
+
+    updateFilterButtons();
 
     if (typeof fetchUserIP === 'function') fetchUserIP();
 })();
