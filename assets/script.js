@@ -406,6 +406,26 @@ function showServerInfoModal(server) {
         </div>`;
     };
 
+    // --- Результат теста ---
+    let resultHtml = '';
+    if (server.status === 'success' && server.ping !== null) {
+        const color = getPingColor(server.ping);
+        const best = server.isBest
+            ? ` <i class="fa-solid fa-star text-yellow-400 text-xs"></i> <span class="text-yellow-500 font-semibold">${t('bestServer')}</span>`
+            : '';
+        resultHtml = `<p><strong>${t('resultLabel')}:</strong>
+            <span style="color:${color}" class="font-semibold">${server.ping} ms</span>${best}</p>`;
+    } else if (server.status === 'error') {
+        resultHtml = `<p><strong>${t('resultLabel')}:</strong>
+            <span class="text-red-400 font-semibold">${t('error')}</span></p>`;
+    } else if (server.status === 'loading') {
+        resultHtml = `<p><strong>${t('resultLabel')}:</strong>
+            <span class="text-gray-400">${t('checking')}</span></p>`;
+    } else {
+        resultHtml = `<p><strong>${t('resultLabel')}:</strong>
+            <span class="text-gray-400">${t('tested')}</span></p>`;
+    }
+
     const content = `
         <h3 class="text-base font-bold mb-3 text-center">${server.name}</h3>
         <div class="text-xs space-y-2 mb-3">
@@ -415,6 +435,7 @@ function showServerInfoModal(server) {
             ${server.country && server.country !== 'N/A'
                 ? `<p><strong>${t('countryLabel')}:</strong> ${tCountry(server.country)}</p>`
                 : ''}
+            ${resultHtml}
         </div>
         ${createRow('DNS over HTTPS', server.url, `url-${server.id}`)}
         ${createRow('IPv4', server.ipv4, `ipv4-${server.id}`)}
