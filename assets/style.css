@@ -59,13 +59,12 @@ html:not(.dark) .animated-bg {
     -webkit-backdrop-filter: blur(16px);
     border: 1px solid var(--border-color);
     transition: background-color 0.3s, border-color 0.3s;
-    height: calc(100dvh - 2rem);
+    height: calc(100dvh - 1rem);
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 640px) {
     .glass-container {
-        height: auto;
-        min-height: 90vh;
+        height: calc(100dvh - 2rem);
     }
 }
 
