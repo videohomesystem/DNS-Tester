@@ -1,109 +1,715 @@
-:root {
-    --bg-color: #f9fafb;
-    --text-color: #1f2937;
-    --card-bg: rgba(255, 255, 255, 0.75);
-    --border-color: rgba(0, 0, 0, 0.1);
-    --hover-bg: rgba(0, 0, 0, 0.05);
-    --icon-color: #4b5563;
-    --header-bg: rgba(255, 255, 255, 0.5);
-    --item-border-color: rgba(0, 0, 0, 0.07);
+// --- Global State ---
+let servers = [];
+let isChecking = false;
+let currentLang = localStorage.getItem('dns_checker_lang') || 'ru';
+let countryFilter = localStorage.getItem('dns_country_filter') || 'all'; // 'all' | 'ru' | 'not-ru'
+const langOrder = ['ru', 'en'];
+
+// --- DOM Elements ---
+const elements = {
+    dnsList: document.getElementById('dns-list'),
+    mainButton: document.getElementById('main-button'),
+    buttonText: document.getElementById('button-text'),
+    buttonLoader: document.getElementById('button-loader'),
+    chartPercent: document.getElementById('chart-percent'),
+    donutFg: document.getElementById('donut-fg'),
+    themeToggle: document.getElementById('theme-toggle'),
+    langToggle: document.getElementById('lang-toggle'),
+    langFlag: document.getElementById('lang-flag'),
+    themeSun: document.getElementById('theme-icon-sun'),
+    themeMoon: document.getElementById('theme-icon-moon'),
+    ipAddress: document.getElementById('ip-address'),
+    geolocation: document.getElementById('geolocation'),
+    countryFlag: document.getElementById('country-flag'),
+    searchBox: document.getElementById('search-box'),
+    addDnsButton: document.getElementById('add-dns-button'),
+    historyButton: document.getElementById('history-button'),
+    shareButton: document.getElementById('share-button'),
+    sharePage: document.getElementById('share-page'),
+    shareList: document.getElementById('share-list'),
+    shareContentArea: document.getElementById('share-content-area'),
+    downloadButton: document.getElementById('download-button'),
+    shareScreenshotButton: document.getElementById('share-screenshot-button'),
+    closeSharePage: document.getElementById('close-share-page'),
+    copyJsonButton: document.getElementById('copy-json-button'),
+    copyYamlButton: document.getElementById('copy-yaml-button'),
+};
+
+// --- Translation helper (with cache) ---
+const _tCache = new Map();
+
+function t(key, vars) {
+    if (key == null) return '';
+    const cacheKey = currentLang + '::' + key;
+    let str = _tCache.get(cacheKey);
+    if (str === undefined) {
+        const dict = (typeof translations !== 'undefined' && translations[currentLang])
+            || (typeof translations !== 'undefined' && translations.en)
+            || {};
+        str = dict[key] ?? key;
+        _tCache.set(cacheKey, str);
+    }
+    if (vars) {
+        for (const k in vars) str = str.replace(`{${k}}`, vars[k]);
+    }
+    return str;
 }
 
-html.dark {
-    --bg-color: #0d1117;
-    --text-color: #f9fafb;
-    --card-bg: rgba(17, 24, 39, 0.7);
-    --border-color: rgba(255, 255, 255, 0.1);
-    --hover-bg: rgba(255, 255, 255, 0.08);
-    --icon-color: #C1C1C1;
-    --header-bg: rgba(17, 24, 39, 0.6);
-    --item-border-color: rgba(255, 255, 255, 0.1);
+function tCountry(code) {
+    if (!code) return '';
+    const dict = (typeof translations !== 'undefined' && translations[currentLang]) || {};
+    return (dict.countries && dict.countries[code]) || code;
 }
 
-body {
-    background-color: var(--bg-color);
-    color: var(--text-color);
-    transition: background-color 0.3s, color 0.3s;
+function getPingColor(ping) {
+    if (ping === null) return 'hsl(0, 0%, 50%)';
+    const saturation = 90;
+    const lightness = 50;
+    const hue = ping <= 300 ? 120 - (ping / 300) * 60 : (ping <= 600 ? 60 - ((ping - 300) / 300) * 60 : 0);
+    return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
 }
 
-/* Background Animation */
-.animated-bg {
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    background: linear-gradient(45deg, #0a192f, #133a75, #5a189a, #9d4edd);
-    background-size: 400% 400%;
-    animation: gradient-animation 30s ease infinite;
-    transition: background 0.5s ease-in-out;
+function getGradientWidthPercentage(ping) {
+    if (ping === null) return 0;
+    const percentage = (ping / 800) * 100;
+    return Math.max(5, Math.min(100, percentage));
 }
 
-html:not(.dark) .animated-bg {
-    background: linear-gradient(45deg, #e5e7eb, #d8b4fe);
+function formatDate(iso) {
+    const locale = currentLang === 'ru' ? 'ru-RU' : 'en-GB';
+    try { return new Date(iso).toLocaleString(locale); } catch { return iso; }
 }
 
-@keyframes gradient-animation {
-    0%   { background-position: 0% 50%; }
-    50%  { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
+// --- Export helpers ---
+function buildExportSnapshot() {
+    return servers.map(s => ({
+        name: s.name,
+        group: s.group,
+        country: s.country || 'N/A',
+        privacy: s.privacy,
+        features: s.features,
+        url: s.url,
+        ipv4: s.ipv4,
+        ipv6: s.ipv6,
+        status: s.status,
+        ping: s.ping,
+        isBest: !!s.isBest,
+    }));
 }
 
-@media (prefers-reduced-motion: reduce) {
-    .animated-bg { animation: none; }
-    .loader { animation-duration: 2s; }
+function toYaml(value, indent = 0) {
+    const pad = '  '.repeat(indent);
+    if (value === null || value === undefined) return 'null';
+
+    if (Array.isArray(value)) {
+        if (value.length === 0) return '[]';
+        return value.map(item => {
+            if (item !== null && typeof item === 'object') {
+                // Первый ключ — на той же строке, что и дефис
+                const lines = toYaml(item, indent + 1).split('\n');
+                lines[0] = `${pad}- ${lines[0].trimStart()}`;
+                return lines.join('\n');
+            }
+            return `${pad}- ${toYaml(item, 0)}`;
+        }).join('\n');
+    }
+
+    if (typeof value === 'object') {
+        const keys = Object.keys(value);
+        if (keys.length === 0) return '{}';
+        return keys.map(key => {
+            const v = value[key];
+            if (v !== null && typeof v === 'object') {
+                return `${pad}${key}:\n${toYaml(v, indent + 1)}`;
+            }
+            return `${pad}${key}: ${toYaml(v, 0)}`;
+        }).join('\n');
+    }
+
+    if (typeof value === 'string') {
+        // Простые строки — без кавычек, остальные — в двойных
+        if (/^[A-Za-z0-9._/:\-]+$/.test(value) && value !== '') return value;
+        return JSON.stringify(value);
+    }
+
+    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+    return JSON.stringify(value);
 }
 
-/* Glass Effect */
-.glass-container {
-    background: var(--card-bg);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid var(--border-color);
-    transition: background-color 0.3s, border-color 0.3s;
-    height: calc(100dvh - 1rem);
-}
-
-@media (min-width: 640px) {
-    .glass-container {
-        height: calc(100dvh - 2rem);
+async function copyToClipboard(text, button) {
+    try {
+        await navigator.clipboard.writeText(text);
+        const original = button.innerText;
+        button.innerText = t('copied');
+        button.disabled = true;
+        setTimeout(() => {
+            button.innerText = original;
+            button.disabled = false;
+        }, 1500);
+    } catch {
+        alert(t('copyFailed'));
     }
 }
 
-/* Scrollbar */
-.custom-scrollbar::-webkit-scrollbar { width: 5px; }
-.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(120, 120, 120, 0.5); border-radius: 10px; }
-
-/* Loader */
-.loader {
-    width: 18px; height: 18px;
-    border: 2px solid #6b7280;
-    border-top-color: #60a5fa;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* Chart */
-.donut-chart-bg { stroke: rgba(120, 120, 120, 0.3); }
-.donut-chart-fg {
-    stroke: #01E391;
-    stroke-linecap: round;
-    transform-origin: 50% 50%;
-    transform: rotate(-90deg);
-    transition: stroke-dashoffset 1s cubic-bezier(0.25, 1, 0.5, 1);
+// --- Local Storage ---
+function getCustomServers() {
+    try { return JSON.parse(localStorage.getItem('customDnsServers') || '[]'); }
+    catch { return []; }
 }
 
-/* Items */
-.dns-item-box {
-    height: fit-content;
-    border: 1px solid var(--item-border-color);
-    background-color: var(--card-bg);
-    background-repeat: no-repeat;
-    background-position: left;
-    transition: background-color 0.3s ease, opacity 0.5s ease-out;
+function saveCustomServers(customServers) {
+    localStorage.setItem('customDnsServers', JSON.stringify(customServers));
 }
 
-@keyframes fadeInUp {
-    from { opacity: 0; transform: translateY(10px); }
-    to   { opacity: 1; transform: translateY(0); }
+function loadServers() {
+    const initialCopy = typeof initialServers !== 'undefined'
+        ? JSON.parse(JSON.stringify(initialServers))
+        : [];
+    servers = [...initialCopy, ...getCustomServers()];
 }
+
+// --- Language ---
+function updateLanguage(lang) {
+    if (typeof translations === 'undefined' || !translations[lang]) return;
+
+    currentLang = lang;
+    const data = translations[lang];
+
+    document.documentElement.lang = lang;
+    document.documentElement.dir = data.dir;
+    if (elements.langFlag) elements.langFlag.src = data.flag;
+    if (data.font) document.body.style.fontFamily = data.font;
+
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        el.textContent = t(el.getAttribute('data-i18n'));
+    });
+    document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        el.placeholder = t(el.getAttribute('data-i18n-placeholder'));
+    });
+    document.querySelectorAll('[data-i18n-title]').forEach(el => {
+        el.title = t(el.getAttribute('data-i18n-title'));
+    });
+
+    if (elements.searchBox) elements.searchBox.placeholder = t('searchPlaceholder');
+
+    updateMainButton();
+    renderList();
+    localStorage.setItem('dns_checker_lang', lang);
+}
+
+function toggleLanguage() {
+    const idx = langOrder.indexOf(currentLang);
+    updateLanguage(langOrder[(idx + 1) % langOrder.length]);
+}
+
+// --- Country filter ---
+function updateFilterButtons() {
+    document.querySelectorAll('#country-filter .filter-btn').forEach(btn => {
+        const active = btn.dataset.filter === countryFilter;
+        btn.classList.toggle('!bg-blue-600', active);
+        btn.classList.toggle('!text-white', active);
+        btn.classList.toggle('bg-black/10', !active);
+        btn.classList.toggle('hover:bg-black/20', !active);
+    });
+}
+
+// --- Export buttons state ---
+function updateExportButtons() {
+    const hasResults = servers.some(s => s.status === 'success' || s.status === 'error');
+    if (elements.copyJsonButton) elements.copyJsonButton.disabled = !hasResults;
+    if (elements.copyYamlButton) elements.copyYamlButton.disabled = !hasResults;
+}
+
+// --- Render ---
+function renderList() {
+    const searchTerm = (elements.searchBox?.value || '').toLowerCase();
+
+    const filteredServers = servers.filter(s => {
+        const matchesSearch =
+            s.name.toLowerCase().includes(searchTerm) ||
+            t(s.group).toLowerCase().includes(searchTerm) ||
+            (s.country && tCountry(s.country).toLowerCase().includes(searchTerm)) ||
+            (s.url && s.url.toLowerCase().includes(searchTerm));
+
+        if (!matchesSearch) return false;
+
+        if (countryFilter === 'ru')     return s.country === 'RU';
+        if (countryFilter === 'not-ru') return s.country !== 'RU';
+        return true;
+    });
+
+    elements.dnsList.innerHTML = '';
+    if (filteredServers.length === 0) {
+        elements.dnsList.innerHTML =
+            `<p class="text-center text-gray-400 col-span-full mt-8">${t('noServers')}</p>`;
+        updateFilterButtons();
+        return;
+    }
+
+    filteredServers.forEach((server, index) => {
+        const div = document.createElement('div');
+        div.className = 'dns-item-box flex items-center justify-between p-2.5 rounded-xl hover:!bg-[var(--hover-bg)] cursor-pointer';
+        div.style.opacity = '0';
+        div.style.animation = `fadeInUp 0.5s ease-out ${index * 0.03}s forwards`;
+        div.onclick = () => showServerInfoModal(server);
+
+        let statusHtml;
+        div.style.backgroundImage = 'none';
+
+        switch (server.status) {
+            case 'success': {
+                const pingColor = getPingColor(server.ping);
+                const gradientColor = pingColor.replace('hsl', 'hsla').replace(')', ', 0.35)');
+                const widthPercent = getGradientWidthPercentage(server.ping);
+                div.style.backgroundImage =
+                    `linear-gradient(to right, ${gradientColor} ${widthPercent}%, transparent ${widthPercent}%)`;
+                statusHtml = `<div class="flex items-center justify-end text-xs"><span style="color: ${pingColor};" class="text-lg mx-1.5">●</span><span class="font-semibold">${server.ping}ms</span></div>`;
+                break;
+            }
+            case 'error':
+                statusHtml = `<div class="flex items-center justify-end text-xs"><span class="text-red-400 text-lg mx-1.5">●</span><span class="text-gray-400">${t('error')}</span></div>`;
+                break;
+            case 'loading':
+                statusHtml = `<div class="loader !w-4 !h-4 mx-auto"></div>`;
+                break;
+            default:
+                statusHtml = '';
+        }
+
+        const bestIcon = server.isBest
+            ? `<i class="fa-solid fa-star text-yellow-400 mx-2 text-xs"></i>` : '';
+        const deleteButton = server.isCustom
+            ? `<button data-server-id="${server.id}" class="delete-button p-1 text-[var(--icon-color)] hover:text-red-500 transition-colors z-10"><i class="fa-solid fa-trash"></i></button>`
+            : '';
+
+        div.innerHTML = `
+            <div class="flex items-center flex-grow min-w-0 gap-1 pointer-events-none">
+                ${bestIcon}
+                <span class="font-medium text-xs text-[var(--text-color)] truncate">${server.name}</span>
+            </div>
+            <div class="flex items-center flex-shrink-0 gap-2">
+                <div class="transition-all duration-300 w-16 text-center">${statusHtml}</div>
+                <button class="info-button p-1 text-[var(--icon-color)] hover:text-blue-500 transition-colors"><i class="fa-solid fa-circle-info"></i></button>
+                ${deleteButton}
+            </div>`;
+        elements.dnsList.appendChild(div);
+    });
+
+    elements.dnsList.querySelectorAll('.delete-button').forEach(btn => {
+        btn.addEventListener('click', e => {
+            e.stopPropagation();
+            const serverId = e.currentTarget.dataset.serverId;
+            const server = servers.find(s => s.id === serverId);
+            if (!server) return;
+
+            const msg = t('deleteConfirmMsg', { name: `<span class="font-bold mx-1">${server.name}</span>` });
+            const content = `
+                <h3 class="text-lg font-bold mb-4">${t('deleteConfirmTitle')}</h3>
+                <p class="mb-5">${msg}</p>
+                <div class="flex justify-end gap-3">
+                    <button class="modal-cancel-button bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg">${t('cancel')}</button>
+                    <button class="modal-confirm-delete bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg">${t('delete')}</button>
+                </div>`;
+            const modal = createCustomModal(content);
+            modal.querySelector('.modal-cancel-button').onclick = () => removeModal(modal);
+            modal.querySelector('.modal-confirm-delete').onclick = () => {
+                saveCustomServers(getCustomServers().filter(s => s.id !== serverId));
+                loadServers();
+                renderList();
+                removeModal(modal);
+            };
+        });
+    });
+
+    updateFilterButtons();
+    updateExportButtons();
+}
+
+function updateMainButton() {
+    elements.mainButton.disabled = isChecking;
+    elements.buttonLoader.classList.toggle('hidden', !isChecking);
+    elements.buttonText.innerText = isChecking ? t('checking') : t('checkServers');
+}
+
+function updateChart(percent) {
+    elements.donutFg.style.strokeDashoffset = 100 - percent;
+    elements.chartPercent.textContent = `${Math.round(percent)}%`;
+}
+
+// --- IP ---
+async function fetchUserIP() {
+    try {
+        const res = await fetch('https://ifconfig.me/all.json');
+        if (!res.ok) throw new Error();
+        const data = await res.json();
+        if (elements.ipAddress) elements.ipAddress.textContent = data.ip_addr || '---';
+        if (elements.geolocation) {
+            const parts = [data.city, data.country].filter(Boolean);
+            elements.geolocation.textContent = parts.length ? parts.join(', ') : '---';
+        }
+    } catch {
+        if (elements.ipAddress) elements.ipAddress.textContent = '---';
+        if (elements.geolocation) elements.geolocation.textContent = '---';
+    }
+}
+
+// --- Ping measurement ---
+async function measurePing(url) {
+    try {
+        const warmupController = new AbortController();
+        setTimeout(() => warmupController.abort(), 1500);
+        await fetch(url, {
+            method: 'HEAD', mode: 'no-cors', cache: 'no-cache',
+            signal: warmupController.signal
+        });
+    } catch { /* ignore warm-up errors */ }
+
+    const startTime = performance.now();
+    try {
+        const controller = new AbortController();
+        setTimeout(() => controller.abort(), 4000);
+        await fetch(url, {
+            method: 'HEAD', mode: 'no-cors', cache: 'no-cache',
+            signal: controller.signal
+        });
+        return Math.round(performance.now() - startTime);
+    } catch {
+        return null;
+    }
+}
+
+// Simple concurrency pool (limits parallel checks)
+async function pool(items, limit, worker) {
+    const results = new Array(items.length);
+    let next = 0;
+    const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
+        while (true) {
+            const i = next++;
+            if (i >= items.length) return;
+            results[i] = await worker(items[i], i);
+        }
+    });
+    await Promise.all(runners);
+    return results;
+}
+
+async function checkDnsServers() {
+    isChecking = true;
+    servers.forEach(s => { s.status = 'loading'; s.ping = null; s.isBest = false; });
+    renderList();
+    updateMainButton();
+    updateChart(0);
+    elements.chartPercent.textContent = '...';
+
+    await pool(servers, 8, async (server) => {
+        const ping = await measurePing(server.url);
+        server.status = ping !== null ? 'success' : 'error';
+        server.ping = ping;
+    });
+
+    const successful = servers.filter(s => s.status === 'success');
+    if (successful.length > 0) {
+        successful.sort((a, b) => a.ping - b.ping)[0].isBest = true;
+    }
+    servers.sort((a, b) => {
+        if (a.status === 'success' && b.status !== 'success') return -1;
+        if (a.status !== 'success' && b.status === 'success') return 1;
+        if (a.status === 'success' && b.status === 'success') return a.ping - b.ping;
+        return 0;
+    });
+
+    isChecking = false;
+    updateChart(servers.length ? (successful.length / servers.length) * 100 : 0);
+    saveHistory();
+    elements.shareButton.disabled = false;
+    renderList();
+    updateMainButton();
+}
+
+function saveHistory() {
+    const history = JSON.parse(localStorage.getItem('dnsTestHistory') || '[]');
+    const top = servers.find(s => s.isBest);
+    history.unshift({
+        date: new Date().toISOString(),
+        topServer: top ? top.name : 'N/A',
+        ping: top ? top.ping : 'N/A'
+    });
+    localStorage.setItem('dnsTestHistory', JSON.stringify(history.slice(0, 5)));
+}
+
+// --- Modals ---
+function createCustomModal(contentHtml) {
+    const modal = document.createElement('div');
+    modal.className = 'fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-[100] transition-opacity duration-300 opacity-0';
+    modal.innerHTML = `<div class="bg-[var(--card-bg)] backdrop-blur-xl p-5 rounded-2xl shadow-lg w-full max-w-md transition-transform duration-300 scale-95">${contentHtml}</div>`;
+
+    // Клик по фону (не по карточке) — закрыть
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) removeModal(modal);
+    });
+
+    // Esc — закрыть
+    const onKey = (e) => {
+        if (e.key === 'Escape') {
+            document.removeEventListener('keydown', onKey);
+            removeModal(modal);
+        }
+    };
+    document.addEventListener('keydown', onKey);
+
+    // Чистим слушатель, когда модалка реально удалена
+    const observer = new MutationObserver(() => {
+        if (!document.body.contains(modal)) {
+            document.removeEventListener('keydown', onKey);
+            observer.disconnect();
+        }
+    });
+    observer.observe(document.body, { childList: true });
+
+    document.body.appendChild(modal);
+    setTimeout(() => {
+        modal.classList.add('opacity-100');
+        modal.firstElementChild.classList.add('scale-100');
+    }, 10);
+    return modal;
+}
+
+function removeModal(modal) {
+    if (!modal) return;
+    modal.classList.remove('opacity-100');
+    modal.firstElementChild.classList.remove('scale-100');
+    setTimeout(() => modal.remove(), 300);
+}
+
+function showModal(contentHtml) {
+    const modal = createCustomModal(`
+        ${contentHtml}
+        <button class="modal-close-button mt-5 bg-blue-600 text-white px-5 py-2 rounded-lg w-full text-sm hover:bg-blue-700 transition">${t('back')}</button>
+    `);
+    modal.querySelector('.modal-close-button').onclick = () => removeModal(modal);
+    modal.querySelectorAll('[data-copy-target]').forEach(copyBtn => {
+        copyBtn.onclick = () => {
+            const text = modal.querySelector(`#${copyBtn.dataset.copyTarget}`).innerText.trim();
+            navigator.clipboard.writeText(text).then(() => {
+                const original = copyBtn.innerText;
+                copyBtn.innerText = t('copied');
+                setTimeout(() => { copyBtn.innerText = original; }, 1500);
+            });
+        };
+    });
+}
+
+function showServerInfoModal(server) {
+    const createRow = (label, val, id) => {
+        if (!val || val === 'N/A') return '';
+        return `<div class="mt-3 pt-3 border-t border-[var(--item-border-color)]">
+            <p class="font-bold text-sm mb-1">${label}:</p>
+            <div class="bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-100 text-left p-3 rounded-md font-mono text-xs select-all break-all" id="${id}" dir="ltr">${val}</div>
+            <button data-copy-target="${id}" class="mt-2 bg-gray-700 hover:bg-gray-600 text-white px-4 py-1 rounded text-xs w-full sm:w-auto">${t('copy')}</button>
+        </div>`;
+    };
+
+    // --- Результат теста ---
+    let resultHtml = '';
+    if (server.status === 'success' && server.ping !== null) {
+        const color = getPingColor(server.ping);
+        const bg = color.replace('hsl', 'hsla').replace(')', ', 0.15)');
+        const border = color.replace('hsl', 'hsla').replace(')', ', 0.45)');
+        const best = server.isBest
+            ? ` <i class="fa-solid fa-star text-yellow-500 text-xs"></i> <span class="font-semibold">${t('bestServer')}</span>`
+            : '';
+        resultHtml = `<p><strong>${t('resultLabel')}:</strong>
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-semibold"
+                  style="background:${bg}; border:1px solid ${border}; color:var(--text-color);">
+                ${server.ping} ms${best}
+            </span></p>`;
+    } else if (server.status === 'error') {
+        resultHtml = `<p><strong>${t('resultLabel')}:</strong>
+            <span class="inline-flex items-center px-2 py-0.5 rounded-md font-semibold"
+                  style="background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.4); color:var(--text-color);">
+                ${t('error')}
+            </span></p>`;
+    } else if (server.status === 'loading') {
+        resultHtml = `<p><strong>${t('resultLabel')}:</strong>
+            <span class="text-gray-500">${t('checking')}</span></p>`;
+    } else {
+        resultHtml = `<p><strong>${t('resultLabel')}:</strong>
+            <span class="text-gray-500">${t('tested')}</span></p>`;
+    }
+
+    const content = `
+        <h3 class="text-base font-bold mb-3 text-center">${server.name}</h3>
+        <div class="text-xs space-y-2 mb-3">
+            <p><strong>${t('groupLabel')}:</strong> ${t(server.group)}</p>
+            <p><strong>${t('featuresLabel')}:</strong> ${server.features.map(f => t(f)).join(', ')}</p>
+            <p><strong>${t('privacyLabel')}:</strong> ${t(server.privacy)}</p>
+            ${server.country && server.country !== 'N/A'
+                ? `<p><strong>${t('countryLabel')}:</strong> ${tCountry(server.country)}</p>`
+                : ''}
+            ${resultHtml}
+        </div>
+        ${createRow('DNS over HTTPS', server.url, `url-${server.id}`)}
+        ${createRow('IPv4', server.ipv4, `ipv4-${server.id}`)}
+        ${createRow('IPv6', server.ipv6, `ipv6-${server.id}`)}
+    `;
+    showModal(content);
+}
+
+// --- Event Listeners ---
+elements.mainButton.addEventListener('click', checkDnsServers);
+elements.searchBox.addEventListener('input', renderList);
+
+elements.themeToggle.addEventListener('click', () => {
+    const isDark = document.documentElement.classList.toggle('dark');
+    localStorage.setItem('dns_checker_theme', isDark ? 'dark' : 'light');
+    elements.themeSun.classList.toggle('hidden', isDark);
+    elements.themeMoon.classList.toggle('hidden', !isDark);
+});
+
+if (elements.langToggle) {
+    elements.langToggle.addEventListener('click', toggleLanguage);
+}
+
+// Фильтр по стране
+document.querySelectorAll('#country-filter .filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        countryFilter = btn.dataset.filter;
+        localStorage.setItem('dns_country_filter', countryFilter);
+        renderList();
+    });
+});
+
+if (elements.copyJsonButton) {
+    elements.copyJsonButton.addEventListener('click', () => {
+        const json = JSON.stringify(buildExportSnapshot(), null, 2);
+        copyToClipboard(json, elements.copyJsonButton);
+    });
+}
+
+if (elements.copyYamlButton) {
+    elements.copyYamlButton.addEventListener('click', () => {
+        const yaml = toYaml(buildExportSnapshot());
+        copyToClipboard(yaml, elements.copyYamlButton);
+    });
+}
+
+elements.addDnsButton.addEventListener('click', () => {
+    const content = `
+        <h3 class="text-lg font-bold mb-4">${t('addCustomDns')}</h3>
+        <form id="add-dns-form" class="space-y-4">
+            <div><label class="block text-sm font-medium mb-1">${t('customName')}</label><input type="text" id="c-name" class="w-full bg-gray-100 dark:bg-gray-800 p-2 rounded-lg text-sm"></div>
+            <div><label class="block text-sm font-medium mb-1">${t('customUrl')}</label><input type="url" id="c-url" class="w-full bg-gray-100 dark:bg-gray-800 p-2 rounded-lg text-sm text-left" dir="ltr"></div>
+            <div class="pt-2 flex justify-end gap-3">
+                 <button type="button" class="c-cancel bg-gray-500 text-white px-4 py-2 rounded-lg">${t('cancel')}</button>
+                 <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg">${t('save')}</button>
+            </div>
+        </form>`;
+    const modal = createCustomModal(content);
+    modal.querySelector('.c-cancel').onclick = () => removeModal(modal);
+    modal.querySelector('form').onsubmit = (e) => {
+        e.preventDefault();
+        const name = document.getElementById('c-name').value.trim();
+        const url = document.getElementById('c-url').value.trim();
+        if (!name || !url) return alert(t('errorEmpty'));
+
+        const newServer = {
+            id: `custom-${Date.now()}`,
+            name, url,
+            features: ['custom'],
+            privacy: 'unknown',
+            group: 'custom',
+            country: 'N/A',
+            isCustom: true,
+            status: 'neutral',
+            ping: null,
+            ipv4: 'N/A',
+            ipv6: 'N/A'
+        };
+        const customs = getCustomServers();
+        customs.push(newServer);
+        saveCustomServers(customs);
+
+        loadServers();
+        renderList();
+        removeModal(modal);
+    };
+});
+
+elements.historyButton.addEventListener('click', () => {
+    const history = JSON.parse(localStorage.getItem('dnsTestHistory') || '[]');
+    let html = `<h3 class="text-lg font-bold mb-4">${t('history')}</h3>`;
+    if (history.length === 0) {
+        html += `<p>${t('noHistory')}</p>`;
+    } else {
+        html += `<ul class="space-y-2 text-sm">`;
+        history.forEach(h => {
+            html += `<li class="p-2 bg-black/10 rounded-lg flex justify-between"><span>${formatDate(h.date)}</span><span class="font-bold">${h.topServer} (${h.ping}ms)</span></li>`;
+        });
+        html += `</ul>`;
+    }
+    showModal(html);
+});
+
+// --- Share & Download ---
+elements.shareButton.addEventListener('click', () => {
+    elements.shareList.innerHTML = '';
+    servers.forEach(s => {
+        const color = s.status === 'success' ? getPingColor(s.ping) : '#9ca3af';
+        const txt = s.status === 'success' ? `${s.ping}ms` : '-';
+        elements.shareList.innerHTML +=
+            `<div class="dns-item-box flex flex-col items-center p-2 rounded-lg"><span class="truncate w-full text-center font-medium">${s.name}</span><span style="color:${color}" class="font-bold">${txt}</span></div>`;
+    });
+    elements.sharePage.classList.remove('hidden');
+    setTimeout(() => elements.sharePage.classList.remove('opacity-0'), 10);
+});
+
+elements.closeSharePage.addEventListener('click', () => {
+    elements.sharePage.classList.add('opacity-0');
+    setTimeout(() => elements.sharePage.classList.add('hidden'), 300);
+});
+
+elements.downloadButton.addEventListener('click', () => {
+    html2canvas(elements.shareContentArea, {
+        backgroundColor: document.documentElement.classList.contains('dark') ? '#0D1117' : '#F9FAFB',
+        scale: 2
+    }).then(canvas => {
+        const link = document.createElement('a');
+        link.download = 'dns-result.png';
+        link.href = canvas.toDataURL();
+        link.click();
+    });
+});
+
+elements.shareScreenshotButton.addEventListener('click', () => {
+    html2canvas(elements.shareContentArea, {
+        backgroundColor: document.documentElement.classList.contains('dark') ? '#0D1117' : '#F9FAFB',
+        scale: 2
+    }).then(canvas => {
+        canvas.toBlob(blob => {
+            const file = new File([blob], 'dns-result.png', { type: 'image/png' });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                navigator.share({ files: [file], title: 'DNS Result' });
+            } else {
+                alert(t('shareNotSupported'));
+            }
+        });
+    });
+});
+
+// --- Initialization ---
+(function init() {
+    const theme = localStorage.getItem('dns_checker_theme') || 'dark';
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+    elements.themeSun.classList.toggle('hidden', theme !== 'dark');
+    elements.themeMoon.classList.toggle('hidden', theme === 'dark');
+
+    loadServers();
+
+    const savedLang = localStorage.getItem('dns_checker_lang') || 'ru';
+    updateLanguage(savedLang);
+
+    updateFilterButtons();
+    updateExportButtons();
+
+    if (typeof fetchUserIP === 'function') fetchUserIP();
+})();
